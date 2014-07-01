@@ -28,7 +28,7 @@ import de.uni_siegen.wineme.come_in.thumbnailer.ThumbnailerException;
 
 /**
  * This class creates Thumbnails from websites
- * 
+ *
  * Depends:
  * <li> Cobra http://lobobrowser.org/cobra/
  *
@@ -36,30 +36,30 @@ import de.uni_siegen.wineme.come_in.thumbnailer.ThumbnailerException;
 public class CobraThumbnailer extends AbstractThumbnailer {
 
 	@Override
-	public void generateThumbnail(File input, File output) throws IOException, ThumbnailerException {
-		
-		
-/*		
+	public void generateThumbnail(final File input, final File output) throws IOException, ThumbnailerException {
+
+
+/*
 		BufferedInputStream in = null;
 		ZipFile zipFile = null;
-		
+
 		try {
 			 zipFile = new ZipFile(input);
 		} catch (ZipException e) {
 			throw new ThumbnailerException("This is not a zipped file. Is this really an OpenOffice-File?", e);
 		}
-		
+
 		try {
 			ZipEntry entry = zipFile.getEntry("Thumbnails/thumbnail.png");
 			if (entry == null)
 				throw new ThumbnailerException("Zip file does not contain 'Thumbnails/thumbnail.png' . Is this really an OpenOffice-File?");
-			
-			in = new BufferedInputStream(zipFile.getInputStream(entry));				
+
+			in = new BufferedInputStream(zipFile.getInputStream(entry));
 
 			ResizeImage resizer = new ResizeImage(thumbWidth, thumbHeight);
 			resizer.setInputImage(in);
 			resizer.writeOutput(output);
-			
+
 			in.close();
 		}
 		finally {
@@ -68,18 +68,26 @@ public class CobraThumbnailer extends AbstractThumbnailer {
 		}
 */
 	}
-	
-    /**
+
+
+	@Override
+	public void generateThumbnails(final File input, final File outputFolder) throws IOException, ThumbnailerException {
+	   // TODO implement Thumbnailer.generateThumbnails
+	}
+
+
+	/**
      * Get a List of accepted File Types.
      * All OpenOffice Formats are accepted.
-     * 
+     *
      * @return MIME-Types
      */
-	public String[] getAcceptedMIMETypes()
-	{
+	@Override
+   public String[] getAcceptedMIMETypes() {
 		return new String[] {
 			      "text/html"
 		};
 	}
+
 
 }

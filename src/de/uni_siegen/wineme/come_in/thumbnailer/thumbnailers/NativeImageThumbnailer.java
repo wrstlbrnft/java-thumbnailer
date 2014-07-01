@@ -33,32 +33,39 @@ import de.uni_siegen.wineme.come_in.thumbnailer.util.ResizeImage;
 /**
  * This class uses Java Image I/O (Java's internal Image Processing library) in order to resize images.
  * JAI can be extended with extra Readers, this Thumbnailer will use all available image readers.
- * 
+ *
  * Depends:
  * <li>JAI Image I/O Tools (optional, for TIFF support) (@see http://java.net/projects/imageio-ext/ - licence not gpl compatible I suspect ...)
  */
 public class NativeImageThumbnailer extends AbstractThumbnailer {
 
-	public void generateThumbnail(File input, File output) throws IOException, ThumbnailerException {
-		ResizeImage resizer = new ResizeImage(thumbWidth, thumbHeight);
-		
+	public void generateThumbnail(final File input, final File output) throws IOException, ThumbnailerException {
+		final ResizeImage resizer = new ResizeImage(this.thumbWidth, this.thumbHeight);
+
 		try {
 			resizer.setInputImage(input);
-		} catch (UnsupportedInputFileFormatException e) {
+		} catch (final UnsupportedInputFileFormatException e) {
 			throw new ThumbnailerException("File format could not be interpreted as image", e);
 		}
-		resizer.writeOutput(output);		
+		resizer.writeOutput(output);
+	}
+
+	@Override
+	public void generateThumbnails(final File input, final File outputFolder) throws IOException, ThumbnailerException {
+	   throw new ThumbnailerException(new UnsupportedOperationException("This thumbnailer only generates single thumbnails. Use #generateThumbnail for this."));
 	}
 
     /**
      * Get a List of accepted File Types.
      * Normally, these are: bmp, jpg, wbmp, jpeg, png, gif
      * The exact list may depend on the Java installation.
-     * 
+     *
      * @return MIME-Types
      */
-	public String[] getAcceptedMIMETypes()
+	@Override
+   public String[] getAcceptedMIMETypes()
 	{
 		return ImageIO.getReaderMIMETypes();
 	}
+
 }

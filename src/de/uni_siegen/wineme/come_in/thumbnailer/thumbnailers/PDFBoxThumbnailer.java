@@ -38,65 +38,60 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 
-import de.uni_siegen.wineme.come_in.thumbnailer.FileDoesNotExistException;
 import de.uni_siegen.wineme.come_in.thumbnailer.ThumbnailerException;
 import de.uni_siegen.wineme.come_in.thumbnailer.util.ResizeImage;
 
 /**
  * Renders the first page of a PDF file into a thumbnail.
- * 
- * Performance note: This takes about 2-3 seconds per file. 
+ *
+ * Performance note: This takes about 2-3 seconds per file.
  * (TODO : Try to override PDPage.convertToImage - this is where the heavy lifting takes place)
- * 
+ *
  * Depends on:
  * <li>PDFBox (>= 1.5.0)
  */
 public class PDFBoxThumbnailer extends AbstractThumbnailer {
 
-	private static final Color TRANSPARENT_WHITE = new Color(255, 255, 255, 0);
-	
+	private static final String OUTPUT_FORMAT = "PNG";
+   private static final Color TRANSPARENT_WHITE = new Color(255, 255, 255, 0);
+
 	@Override
-	public void generateThumbnail(File input, File output) throws IOException,
-			ThumbnailerException {
-		FileDoesNotExistException.check(input);
-		if (input.length() == 0)
-			throw new FileDoesNotExistException("File is empty");
+	public void generateThumbnail(final File input, final File output) throws IOException, ThumbnailerException {
+
 		FileUtils.deleteQuietly(output);
 
 		PDDocument document = null;
-		try
-		{
+		try {
 			try {
 				document = PDDocument.load(input);
-			} catch (IOException e) {
+			} catch (final IOException e) {
 				throw new ThumbnailerException("Could not load PDF File", e);
 			}
 
-			BufferedImage tmpImage = writeImageFirstPage(document, BufferedImage.TYPE_INT_RGB);
+			final List<?> pages = document.getDocumentCatalog().getAllPages();
+	      final PDPage page = (PDPage)pages.get(0);
+			final BufferedImage tmpImage = this.writeImageForPage(document, page, BufferedImage.TYPE_INT_RGB);
 
-			if (tmpImage.getWidth() == thumbWidth)
-			{
-				ImageIO.write(tmpImage, "PNG", output);
-			}
-			else
-			{
-				ResizeImage resizer = new ResizeImage(thumbWidth, thumbHeight);
+			if (tmpImage.getWidth() == this.thumbWidth) {
+				ImageIO.write(tmpImage, PDFBoxThumbnailer.OUTPUT_FORMAT, output);
+			} else {
+				final ResizeImage resizer = new ResizeImage(this.thumbWidth, this.thumbHeight);
 				resizer.resizeMethod = ResizeImage.NO_RESIZE_ONLY_CROP;
 				resizer.setInputImage(tmpImage);
-				resizer.writeOutput(output);				
+				resizer.writeOutput(output);
 			}
 		}
-		finally
-		{
+
+		finally {
 			if( document != null )
 			{
 				try {
 					document.close();
-				} catch (IOException e)  {}
+				} catch (final IOException e)  {}
 			}
 		}
 	}
-	
+
 	/**
 	 * Loosely based on the commandline-Tool PDFImageWriter
 	 * @param document
@@ -104,12 +99,9 @@ public class PDFBoxThumbnailer extends AbstractThumbnailer {
 	 * @return
 	 * @throws IOException
 	 */
-    private BufferedImage writeImageFirstPage(PDDocument document, int imageType)
+    private BufferedImage writeImageForPage(final PDDocument document, final PDPage page, final int imageType)
     throws IOException
     {
-    	List<?> pages = document.getDocumentCatalog().getAllPages();
-
-    	PDPage page = (PDPage)pages.get(0);
 
     	// resolution: Unfortunately, the resolution is in integer in the call ... so we approximate by taking slightly less (rounding down).
     	/* Before:
@@ -119,63 +111,110 @@ public class PDFBoxThumbnailer extends AbstractThumbnailer {
     	*/
 
     	// Here is the main work:
-    	BufferedImage image = convertToImage(page, imageType, thumbWidth, thumbHeight); 
-    	
+    	final BufferedImage image = this.convertToImage(page, imageType, this.thumbWidth, this.thumbHeight);
+
     	return image;
     }
-    
-    /*     */   private BufferedImage convertToImage(PDPage page, int imageType, int thumbWidth, int thumbHeight)
+
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public void generateThumbnails(final File input, final File outputFolder) throws IOException, ThumbnailerException {
+       PDDocument document = null;
+       try {
+          try {
+             document = PDDocument.load(input);
+          } catch (final IOException e) {
+             throw new ThumbnailerException("Could not load PDF File", e);
+          }
+
+          final List<PDPage> allPages = document.getDocumentCatalog().getAllPages();
+          int pageNumber = 0;
+          for (final PDPage page : allPages) {
+             final BufferedImage image = this.writeImageForPage(document, page, BufferedImage.TYPE_INT_RGB);
+
+             final String outputFileName = outputFolder.getName() + "-" + pageNumber;
+             final File outputFile = new File(outputFolder, outputFileName);
+
+             if (image.getWidth() == this.thumbWidth) {
+                ImageIO.write(image, PDFBoxThumbnailer.OUTPUT_FORMAT, outputFile);
+             } else {
+                final ResizeImage resizer = new ResizeImage(this.thumbWidth, this.thumbHeight);
+                resizer.resizeMethod = ResizeImage.NO_RESIZE_ONLY_CROP;
+                resizer.setInputImage(image);
+                resizer.writeOutput(outputFile);
+             }
+
+             pageNumber++;
+          }
+
+       } finally {
+          if (document != null) {
+             try {
+                document.close();
+             } catch (final IOException e) {
+                // swallow exception on closing.
+             }
+          }
+       }
+
+    }
+
+
+
+
+    /*     */   private BufferedImage convertToImage(final PDPage page, final int imageType, final int thumbWidth, final int thumbHeight)
     /*     */     throws IOException
     /*     */   {
-    /* 707 */     PDRectangle mBox = page.findMediaBox();
-    /* 708 */     float widthPt = mBox.getWidth();
-    /* 709 */     float heightPt = mBox.getHeight();
-    /* 711 */     int widthPx = thumbWidth; 			// Math.round(widthPt * scaling);
-    /* 712 */     int heightPx = thumbHeight; 			// Math.round(heightPt * scaling);
-    /* 710 */     float scaling = thumbWidth / widthPt; // resolution / 72.0F;
-    /*     */ 
-    /* 714 */     Dimension pageDimension = new Dimension((int) widthPt, (int) heightPt);
-    /*     */ 
-    /* 716 */     BufferedImage retval = new BufferedImage(widthPx, heightPx, imageType);
-    /* 717 */     Graphics2D graphics = (Graphics2D)retval.getGraphics();
-    /* 718 */     graphics.setBackground(TRANSPARENT_WHITE);
+    /* 707 */     final PDRectangle mBox = page.findMediaBox();
+    /* 708 */     final float widthPt = mBox.getWidth();
+    /* 709 */     final float heightPt = mBox.getHeight();
+    /* 711 */     final int widthPx = thumbWidth; 			// Math.round(widthPt * scaling);
+    /* 712 */     final int heightPx = thumbHeight; 			// Math.round(heightPt * scaling);
+    /* 710 */     final float scaling = thumbWidth / widthPt; // resolution / 72.0F;
+    /*     */
+    /* 714 */     final Dimension pageDimension = new Dimension((int) widthPt, (int) heightPt);
+    /*     */
+    /* 716 */     final BufferedImage retval = new BufferedImage(widthPx, heightPx, imageType);
+    /* 717 */     final Graphics2D graphics = (Graphics2D)retval.getGraphics();
+    /* 718 */     graphics.setBackground(PDFBoxThumbnailer.TRANSPARENT_WHITE);
     /* 719 */     graphics.clearRect(0, 0, retval.getWidth(), retval.getHeight());
     /* 720 */     graphics.scale(scaling, scaling);
-    /* 721 */     PageDrawer drawer = new PageDrawer();
+    /* 721 */     final PageDrawer drawer = new PageDrawer();
     /* 722 */     drawer.drawPage(graphics, page, pageDimension);
     /*     */     try
     /*     */     {
-    /* 728 */       int rotation = page.findRotation();
-    /* 729 */       if ((rotation == 90) || (rotation == 270))
+    /* 728 */       final int rotation = page.findRotation();
+    /* 729 */       if (rotation == 90 || rotation == 270)
     /*     */       {
-    /* 731 */         int w = retval.getWidth();
-    /* 732 */         int h = retval.getHeight();
-    /* 733 */         BufferedImage rotatedImg = new BufferedImage(w, h, retval.getType());
-    /* 734 */         Graphics2D g = rotatedImg.createGraphics();
+    /* 731 */         final int w = retval.getWidth();
+    /* 732 */         final int h = retval.getHeight();
+    /* 733 */         final BufferedImage rotatedImg = new BufferedImage(w, h, retval.getType());
+    /* 734 */         final Graphics2D g = rotatedImg.createGraphics();
     /* 735 */         g.rotate(Math.toRadians(rotation), w / 2, h / 2);
     /* 736 */         g.drawImage(retval, null, 0, 0);
     /*     */       }
     /*     */     }
-    /*     */     catch (ImagingOpException e)
+    /*     */     catch (final ImagingOpException e)
     /*     */     {
     /* 741 */       //log.warn("Unable to rotate page image", e);
     /*     */     }
-    /*     */ 
+    /*     */
     /* 744 */     return retval;
     /*     */   }
 
     /**
      * Get a List of accepted File Types.
      * Only PDF Files are accepted.
-     * 
+     *
      * @return MIME-Types
      */
-	public String[] getAcceptedMIMETypes()
+	@Override
+   public String[] getAcceptedMIMETypes()
 	{
 		return new String[]{
 				"application/pdf"
 		};
 	}
 
-    
 }

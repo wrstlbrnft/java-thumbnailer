@@ -28,42 +28,47 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
 
+import org.artofsolving.jodconverter.document.DocumentFormat;
+import org.artofsolving.jodconverter.office.OfficeException;
+
 import de.uni_siegen.wineme.come_in.thumbnailer.ThumbnailerException;
 import de.uni_siegen.wineme.come_in.thumbnailer.util.IOUtil;
+import de.uni_siegen.wineme.come_in.thumbnailer.util.Platform;
 import de.uni_siegen.wineme.come_in.thumbnailer.util.ResizeImage;
 
 /**
  * This class extracts Thumbnails from OpenOffice-Files.
- * 
+ *
  * Depends:
  * <li> <i>NOT</i> on OpenOffice, as the Thumbnail is already inside the file. (184x256px regardless of page orientation)
- * 		(So if the thumbnail generation is not correct, it's OpenOffice's fault, not our's :-) 
+ * 		(So if the thumbnail generation is not correct, it's OpenOffice's fault, not our's :-)
  *
  */
 public class OpenOfficeThumbnailer extends AbstractThumbnailer {
 
 	@Override
-	public void generateThumbnail(File input, File output) throws IOException, ThumbnailerException {
+	public void generateThumbnail(final File input, final File output) throws IOException, ThumbnailerException {
 		BufferedInputStream in = null;
 		ZipFile zipFile = null;
-		
+
 		try {
 			 zipFile = new ZipFile(input);
-		} catch (ZipException e) {
+		} catch (final ZipException e) {
 			throw new ThumbnailerException("This is not a zipped file. Is this really an OpenOffice-File?", e);
 		}
-		
-		try {
-			ZipEntry entry = zipFile.getEntry("Thumbnails/thumbnail.png");
-			if (entry == null)
-				throw new ThumbnailerException("Zip file does not contain 'Thumbnails/thumbnail.png' . Is this really an OpenOffice-File?");
-			
-			in = new BufferedInputStream(zipFile.getInputStream(entry));				
 
-			ResizeImage resizer = new ResizeImage(thumbWidth, thumbHeight);
+		try {
+			final ZipEntry entry = zipFile.getEntry("Thumbnails/thumbnail.png");
+			if (entry == null) {
+        throw new ThumbnailerException("Zip file does not contain 'Thumbnails/thumbnail.png' . Is this really an OpenOffice-File?");
+      }
+
+			in = new BufferedInputStream(zipFile.getInputStream(entry));
+
+			final ResizeImage resizer = new ResizeImage(this.thumbWidth, this.thumbHeight);
 			resizer.setInputImage(in);
 			resizer.writeOutput(output);
-			
+
 			in.close();
 		}
 		finally {
@@ -71,14 +76,58 @@ public class OpenOfficeThumbnailer extends AbstractThumbnailer {
 			IOUtil.quietlyClose(zipFile);
 		}
 	}
-	
-    /**
-     * Get a List of accepted File Types.
-     * All OpenOffice Formats are accepted.
-     * 
-     * @return MIME-Types
-     */
-	public String[] getAcceptedMIMETypes()
+
+  private File checkInputPath(File input) {
+    // Naughty hack to circumvent invalid URLs under windows (C:\\ ...)
+     if (Platform.isWindows()) {
+        input = new File(input.getAbsolutePath().replace("\\\\", "\\"));
+     }
+    return input;
+  }
+
+  private File convertToPdf(final File input) throws ThumbnailerException, IOException {
+    final File tempFile = File.createTempFile(JODConverterThumbnailer.TEMP_FILE, ".pdf");
+    final File checkedInput = this.checkInputPath(input);
+    try {
+      final DocumentFormat format = JODConverterThumbnailer.officeConverter.getFormatRegistry().getFormatByExtension("pdf");
+      JODConverterThumbnailer.officeConverter.convert(checkedInput, tempFile, format);
+    } catch (final OfficeException e) {
+      throw new ThumbnailerException("Could not convert into PDF file", e);
+    }
+    if (tempFile.length() == 0) {
+      throw new ThumbnailerException("Could not convert into PDF file (file was empty)");
+    }
+    return tempFile;
+  }
+
+
+
+	@Override
+	public void generateThumbnails(final File input, final File outputFolder) throws IOException, ThumbnailerException {
+	  JODConverterThumbnailer.connect();
+	  File tempPdfFile = null;
+    PDFBoxThumbnailer pdfNailer = null;
+    try {
+       tempPdfFile = this.convertToPdf(input);
+       // invoke the converter for PDF files
+       pdfNailer = new PDFBoxThumbnailer();
+       pdfNailer.generateThumbnails(tempPdfFile, outputFolder);
+    } finally {
+      if (pdfNailer != null) {
+        pdfNailer.close();
+      }
+       IOUtil.deleteQuietlyForce(tempPdfFile);
+    }
+	}
+
+	/**
+    * Get a List of accepted File Types.
+    * All OpenOffice Formats are accepted.
+    *
+    * @return MIME-Types
+    */
+	@Override
+  public String[] getAcceptedMIMETypes()
 	{
 		return new String[] {
 			      "application/vnd.sun.xml.writer",
@@ -109,9 +158,10 @@ public class OpenOfficeThumbnailer extends AbstractThumbnailer {
 			      "application/vnd.oasis.opendocument.formula",
 			      "application/vnd.oasis.opendocument.database",
 			      "application/vnd.oasis.opendocument.image",
-			      
+
 			      "application/zip" /* Could be an OpenOffice file! */
 		};
 	}
+
 
 }

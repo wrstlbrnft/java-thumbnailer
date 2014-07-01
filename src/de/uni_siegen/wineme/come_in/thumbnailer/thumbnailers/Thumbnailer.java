@@ -35,7 +35,7 @@ public interface Thumbnailer extends Closeable {
 
 	/**
 	 * Generate a Thumbnail of the input file.
-	 * 
+	 *
 	 * @param input		Input file that should be processed
 	 * @param output	File in which should be written
 	 * @param mimeType	MIME-Type of input file (null if unknown)
@@ -46,33 +46,54 @@ public interface Thumbnailer extends Closeable {
 
 	/**
 	 * Generate a Thumbnail of the input file.
-	 * 
+	 *
 	 * @param input		Input file that should be processed
 	 * @param output	File in which should be written
 	 * @throws IOException			If file cannot be read/written
 	 * @throws ThumbnailerException If the thumbnailing process failed.
 	 */
 	public void generateThumbnail(File input, File output) throws IOException, ThumbnailerException;
-	
+
+	/**
+	 *  Generates thumbnails of all pages of the input file.
+    *
+    * @param input the file to be processed
+    * @param outputFolder folder where thumbnails should be written to
+	 * @param mimeType  MIME-Type of input file (null if unknown)
+	 * @throws IOException
+	 * @throws ThumbnailerException
+	 */
+	public void generateThumbnails(File input, File outputFolder, String mimeType) throws IOException, ThumbnailerException;
+
+	/**
+	 * Generates thumbnails of all pages of the input file.
+	 *
+	 * @param input the file to be processed
+	 * @param outputFolder folder where thumbnails should be written to
+	 * @throws IOException
+	 * @throws ThumbnailerException
+	 */
+	public void generateThumbnails(File input, File outputFolder) throws IOException, ThumbnailerException;
+
 	/**
 	 * This function will be called after all Thumbnails are generated.
 	 * Note: This acts as a Deconstructor. Do not expect this object to work
 	 * after calling this method.
-	 * 
+	 *
 	 * @throws IOException	If some errors occured during finalising
 	 */
 	public void close() throws IOException;
-	
-	
+
+
 	/**
 	 * Set a new Thumbnail size. All following thumbnails will be generated in this size.
-	 * 
+	 *
 	 * @param width					Width in Pixel
 	 * @param height				Height in Pixel
 	 * @param imageResizeOptions	Options for ResizeImage (currently ignored)
 	 */
 	public void setImageSize(int width, int height, int imageResizeOptions);
-	
+
 	/**
 	 * Get the currently set Image Width of this Thumbnailer.
 	 * @return	image width of created thumbnails.
@@ -84,10 +105,10 @@ public interface Thumbnailer extends Closeable {
 	 * @return	image height of created thumbnails.
 	 */
 	public int getCurrentImageHeight();
-	
+
 	/**
 	 * Get a list of all MIME Types that this Thumbnailer is ready to process.
-	 * 
+	 *
 	 * @return List of MIME Types. If null, all Files may be passed to this Thumbnailer.
 	 */
 	public String[] getAcceptedMIMETypes();

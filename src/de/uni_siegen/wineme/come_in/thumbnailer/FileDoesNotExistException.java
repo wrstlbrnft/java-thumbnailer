@@ -31,95 +31,109 @@ public class FileDoesNotExistException extends IOException {
 	public FileDoesNotExistException() {
 	}
 
-	public FileDoesNotExistException(String arg0) {
+	public FileDoesNotExistException(final String arg0) {
 		super(arg0);
 	}
 
-	public FileDoesNotExistException(Throwable arg0) {
+	public FileDoesNotExistException(final Throwable arg0) {
 		super(arg0);
 	}
 
-	public FileDoesNotExistException(String arg0, Throwable arg1) {
+	public FileDoesNotExistException(final String arg0, final Throwable arg1) {
 		super(arg0, arg1);
 	}
-		
+
 	/**
 	 * Test if the file/directory exists and can be read.
-	 * @param f		File to be tested	
+	 * @param f		File to be tested
 	 * @param label	How the file is called.
 	 * @throws FileDoesNotExistException	if it does not exists or cannot be read.
 	 */
-	public static void check(File f, String label) throws FileDoesNotExistException
+	public static void check(final File f, String label) throws FileDoesNotExistException
 	{
-		if (label == null)
+		if (label == null) {
 			label = "The file";
+		}
 
-		if (f == null)
+		if (f == null) {
 			throw new FileDoesNotExistException(label + " does not exist (is null).");
-		else if (!f.isFile() && !f.isDirectory())
-			throw new FileDoesNotExistException(label + " is not a file or directory: "+
-												f.getAbsolutePath());
-		else if (!f.exists())
-			throw new FileDoesNotExistException(label + " does not exist: "+
-												f.getAbsolutePath());
-		else if (!f.canRead())
-			throw new FileDoesNotExistException(label + " cannot be read: "+
-												f.getAbsolutePath());
+		}
+
+		if (!f.isFile() && !f.isDirectory()) {
+			throw new FileDoesNotExistException(label + " is not a file or directory: "+ f.getAbsolutePath());
+		}
+
+		if (!f.exists()) {
+			throw new FileDoesNotExistException(label + " does not exist: "+ f.getAbsolutePath());
+		}
+
+		if (!f.canRead()) {
+			throw new FileDoesNotExistException(label + " cannot be read: "+ f.getAbsolutePath());
+		}
+
+		if (f.length() == 0) {
+         throw new FileDoesNotExistException(label + " is empty");
+      }
 	}
-	
-	public static void check(File f) throws FileDoesNotExistException
+
+	public static void check(final File f) throws FileDoesNotExistException
 	{
 		check(f, null);
 	}
 
-	public static void checkWrite(File f, String label, boolean createParentDirsIfNotExist, boolean isDir) throws FileDoesNotExistException {
-		if (label == null)
-			label = "The file";
-		if (f == null)
-			throw new FileDoesNotExistException(label + " does not exist (is null).");
-		
+	public static void checkWrite(final File f, String label, final boolean createParentDirsIfNotExist, final boolean isDir) throws FileDoesNotExistException {
+		if (label == null) {
+         label = "The file";
+      }
+		if (f == null) {
+         throw new FileDoesNotExistException(label + " does not exist (is null).");
+      }
+
 		if (createParentDirsIfNotExist)
 		{
-			boolean ret; 
+			boolean ret;
 			if (isDir)
 			{
 				ret = f.mkdirs();
-				if (!ret && !f.exists())
-					throw new FileDoesNotExistException("Not all directories could be created: " + f.getAbsolutePath());
+				if (!ret && !f.exists()) {
+               throw new FileDoesNotExistException("Not all directories could be created: " + f.getAbsolutePath());
+            }
 			}
 			else
 			{
-				File parent = f.getParentFile();
+				final File parent = f.getParentFile();
 				if (parent != null) // No idea why it returns null sometimes
 				{
 					ret = parent.mkdirs();
-					if (!ret && !parent.exists())
-						throw new FileDoesNotExistException("Not all parent directories could be created: " + f.getAbsolutePath());
+					if (!ret && !parent.exists()) {
+                  throw new FileDoesNotExistException("Not all parent directories could be created: " + f.getAbsolutePath());
+               }
 				}
 			}
 		}
-			
+
 		if (isDir)
 		{
-			if (!f.canWrite())
-				throw new FileDoesNotExistException(label + " cannot be written/modified: " + f.getAbsolutePath());
+			if (!f.canWrite()) {
+            throw new FileDoesNotExistException(label + " cannot be written/modified: " + f.getAbsolutePath());
+         }
 		}
 		else
 		{
 			try {
 				f.createNewFile();
 				f.delete();
-			} catch (IOException e) {
+			} catch (final IOException e) {
 				throw new FileDoesNotExistException(label + " ist nicht beschreibbar: " + f.getAbsolutePath());
-			} 
+			}
 		}
 	}
-	public static void checkWrite(File f, String label) throws FileDoesNotExistException {
+	public static void checkWrite(final File f, final String label) throws FileDoesNotExistException {
 		checkWrite(f, label, false, false);
 	}
-	public static void checkWrite(File f) throws FileDoesNotExistException {
+	public static void checkWrite(final File f) throws FileDoesNotExistException {
 		checkWrite(f, null);
 	}
-	
+
 
 }

@@ -52,6 +52,13 @@ public class DummyThumbnailer extends AbstractThumbnailer {
 		ImageIO.write(image, "PNG", output);
 	}
 	
+	
+	@Override
+	public void generateThumbnails(File input, File outputFolder) throws IOException, ThumbnailerException {
+	   //implement me
+	}
+
+	
 	/**
 	 * Get a list of all MIME Types that this Thumbnailer is ready to process.
 	 * You should override this method in order to give hints when which Thumbnailer is most appropriate.
@@ -67,5 +74,6 @@ public class DummyThumbnailer extends AbstractThumbnailer {
 			"text/hello-world-2"
 		};
 	}
+
 
 }

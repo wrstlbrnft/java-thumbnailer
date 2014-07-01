@@ -27,252 +27,335 @@ import java.io.IOException;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.log4j.Logger;
 import org.artofsolving.jodconverter.OfficeDocumentConverter;
+import org.artofsolving.jodconverter.document.DocumentFormat;
 import org.artofsolving.jodconverter.office.DefaultOfficeManagerConfiguration;
 import org.artofsolving.jodconverter.office.OfficeException;
 import org.artofsolving.jodconverter.office.OfficeManager;
 
 import de.uni_siegen.wineme.come_in.thumbnailer.ThumbnailerException;
-import de.uni_siegen.wineme.come_in.thumbnailer.util.mime.MimeTypeDetector;
 import de.uni_siegen.wineme.come_in.thumbnailer.util.IOUtil;
 import de.uni_siegen.wineme.come_in.thumbnailer.util.Platform;
 import de.uni_siegen.wineme.come_in.thumbnailer.util.TemporaryFilesManager;
+import de.uni_siegen.wineme.come_in.thumbnailer.util.mime.MimeTypeDetector;
 
 /**
  * This generates a thumbnail of Office-Files by converting them into the OpenOffice-Format first.
- * 
- * Performance note: this may take several seconds per file. The first time this Thumbnailer is called, OpenOffice is started.
- * 
- * Depends on:
- * <li>OpenOffice 3 / LibreOffice
- * <li>JODConverter 3 beta5 or higher
- * <li>Aperture Core (MIME Type detection)
- * <li>OpenOfficeThumbnailer
- * 
- * 
- * @TODO Be stricter about which kind of files to process. Currently it converts just like everything. (See tests/ThumbnailersFailingTest)
- * 
+ * Performance note: this may take several seconds per file. The first time this Thumbnailer is
+ * called, OpenOffice is started. Depends on: <li>OpenOffice 3 / LibreOffice <li>JODConverter 3
+ * beta5 or higher <li>Aperture Core (MIME Type detection) <li>OpenOfficeThumbnailer
+ *
+ * @TODO Be stricter about which kind of files to process. Currently it converts just like
+ *       everything. (See tests/ThumbnailersFailingTest)
  * @author Benjamin
- * 
  */
 public abstract class JODConverterThumbnailer extends AbstractThumbnailer {
 
-	/** The logger for this class */
-	protected static Logger mLog = Logger.getLogger(JODConverterThumbnailer.class);
+   static final String TEMP_FILE = "jodtemp";
 
-	/**
-	 * JOD Office Manager
-	 */
-	protected static OfficeManager officeManager = null;
-	
-	/**
-	 * JOD Converter
-	 */
-	protected static OfficeDocumentConverter officeConverter = null;
+  /** The logger for this class */
+   protected static Logger mLog = Logger.getLogger(JODConverterThumbnailer.class);
 
-	/**
-	 * Thumbnail Extractor for OpenOffice Files
-	 */
-	protected OpenOfficeThumbnailer ooo_thumbnailer = null;
-	
-	/**
-	 * MimeIdentification
-	 */
-	protected MimeTypeDetector mimeTypeDetector = null;
+   /**
+    * JOD Office Manager
+    */
+   protected static OfficeManager officeManager = null;
 
-	private TemporaryFilesManager temporaryFilesManager = null;
+   /**
+    * JOD Converter
+    */
+   protected static OfficeDocumentConverter officeConverter = null;
 
-	/**
-	 * OpenOffice Home Folder (Configurable)
-	 */
-	private static String openOfficeHomeFolder = null;
-	
-	/**
-	 * The Port on which to connect (must be unoccupied)
-	 */
-	private final static int OOO_DEFAULT_PORT = 8100;
-	
-	/**
-	 * OpenOffice Home Folder (Configurable)
-	 */
-	private static int openOfficePort = OOO_DEFAULT_PORT;
-	
-	/**
-	 * How long may a conversion take? (in ms)
-	 */
-	private static final long JOD_DOCUMENT_TIMEOUT = 12000;
-	
-	public static void setOpenOfficePort(int openOfficePort) {
-		if (openOfficePort > 0)
-			JODConverterThumbnailer.openOfficePort = openOfficePort;
-	}
+   /**
+    * Thumbnail Extractor for OpenOffice Files
+    */
+   protected OpenOfficeThumbnailer ooo_thumbnailer = null;
 
-	public static void setOpenOfficeHomeFolder(String openOfficeHomeFolder)
-	{
-		JODConverterThumbnailer.openOfficeHomeFolder = openOfficeHomeFolder;
-	}
+   /**
+    * MimeIdentification
+    */
+   protected MimeTypeDetector mimeTypeDetector = null;
 
-	public static void setOpenOfficeProfileFolder(String paramOpenOfficeProfile)
-	{
-		if (paramOpenOfficeProfile != null)
-			JODConverterThumbnailer.openOfficeTemplateProfileDir = new File(paramOpenOfficeProfile);
-	}
-	
-	public JODConverterThumbnailer()
-	{
-		ooo_thumbnailer = new OpenOfficeThumbnailer();
-		mimeTypeDetector = new MimeTypeDetector();
-		temporaryFilesManager = new TemporaryFilesManager();
-	}
-	
-	protected static File openOfficeTemplateProfileDir = null;
-	
-	
-	/**
-	 * Start OpenOffice-Service and connect to it.
-	 * (Does not reconnect if already connected.)
-	 */
-	public static void connect() { 	connect(false); }
-	
-	/**
-	 * Start OpenOffice-Service and connect to it.
-	 * @param forceReconnect	Connect even if he is already connected.
-	 */
-	public static void connect(boolean forceReconnect)
-	{
-		if (!forceReconnect && isConnected())
-			return;
-		
-		DefaultOfficeManagerConfiguration config = new DefaultOfficeManagerConfiguration()
-			.setPortNumber(openOfficePort)
-			.setTaskExecutionTimeout(JOD_DOCUMENT_TIMEOUT);
-		
-		if (openOfficeHomeFolder != null)
-			config.setOfficeHome(openOfficeHomeFolder);
-		
-		if (openOfficeTemplateProfileDir != null)
-		{
-			if (openOfficeTemplateProfileDir.exists())
-				config.setTemplateProfileDir(openOfficeTemplateProfileDir);
-			else
-				mLog.info("No Template Profile Folder found at " + openOfficeTemplateProfileDir.getAbsolutePath() + " - Creating temporary one.");
-		}
-		else
-			mLog.info("Creating temporary profile folder...");
-			
-		officeManager = config.buildOfficeManager();
-		officeManager.start();
-		
-		officeConverter = new OfficeDocumentConverter(officeManager);
-	}
-	
-	/**
-	 * Check if a connection to OpenOffice is established.
-	 * @return	True if connected.
-	 */
-	public static boolean isConnected()
-	{
-		return officeManager != null && officeManager.isRunning();
-	}
+   private TemporaryFilesManager temporaryFilesManager = null;
 
-	/**
-	 * Stop the OpenOffice Process and disconnect.
-	 */
-	public static void disconnect()
-	{
-		// close the connection
-		if (officeManager != null)
-			officeManager.stop();
-		officeManager = null;
-	}
-	
-	public void close() throws IOException
-	{
-		try {
-			try {
-				temporaryFilesManager.deleteAllTempfiles();
-				ooo_thumbnailer.close();
-			} finally {
-				disconnect();
-			}
-		} finally {
-			super.close();
-		}
-	}	
-	
-	
-	
-	/**
-	 * Generates a thumbnail of Office files.
-	 * 
-	 * @param input		Input file that should be processed
-	 * @param output	File in which should be written
-	 * @throws IOException			If file cannot be read/written
-	 * @throws ThumbnailerException If the thumbnailing process failed.
-	 */
-	@Override
-	public void generateThumbnail(File input, File output) throws IOException, ThumbnailerException {
-		// Connect on first use
-		if (!isConnected())
-			connect();
+   /**
+    * OpenOffice Home Folder (Configurable)
+    */
+   private static String openOfficeHomeFolder = null;
 
-		File outputTmp = null;
-		try {
-			outputTmp = File.createTempFile("jodtemp", "." + getStandardOpenOfficeExtension());
+   /**
+    * The Port on which to connect (must be unoccupied)
+    */
+   private final static int OOO_DEFAULT_PORT = 8100;
 
-			// Naughty hack to circumvent invalid URLs under windows (C:\\ ...)
-			if (Platform.isWindows())
-				input = new File(input.getAbsolutePath().replace("\\\\", "\\"));
+   /**
+    * OpenOffice Home Folder (Configurable)
+    */
+   private static int openOfficePort = JODConverterThumbnailer.OOO_DEFAULT_PORT;
 
-			try {
-				officeConverter.convert(input, outputTmp);
-			} catch (OfficeException e) {
-				throw new ThumbnailerException("Could not convert into OpenOffice-File", e);
-			}
-			if (outputTmp.length() == 0)
-			{
-				throw new ThumbnailerException("Could not convert into OpenOffice-File (file was empty)...");
-			}
+   /**
+    * How long may a conversion take? (in ms)
+    */
+   private static final long JOD_DOCUMENT_TIMEOUT = 12000;
 
-			ooo_thumbnailer.generateThumbnail(outputTmp, output);
-		} finally {
-			IOUtil.deleteQuietlyForce(outputTmp);
-		}
-	}
 
-	/**
-	 * Generate a Thumbnail of the input file.
-	 * (Fix file ending according to MIME-Type).
-	 * 
-	 * @param input		Input file that should be processed
-	 * @param output	File in which should be written
-	 * @param mimeType	MIME-Type of input file (null if unknown)
-	 * @throws IOException			If file cannot be read/written
-	 * @throws ThumbnailerException If the thumbnailing process failed.
-	 */
-	public void generateThumbnail(File input, File output, String mimeType) throws IOException, ThumbnailerException {
-		String ext = FilenameUtils.getExtension(input.getName());
-		if (!mimeTypeDetector.doesExtensionMatchMimeType(ext, mimeType))
-		{
-			String newExt;
-			if ("application/zip".equals(mimeType))
-				newExt = getStandardZipExtension();
-			else if ("application/vnd.ms-office".equals(mimeType))
-				newExt = getStandardOfficeExtension();
-			else
-				newExt = mimeTypeDetector.getStandardExtensionForMimeType(mimeType);
-			
-			input = temporaryFilesManager .createTempfileCopy(input, newExt);
-		}
 
-		generateThumbnail(input, output);
-	}
-	
-	protected abstract String getStandardZipExtension();
-	protected abstract String getStandardOfficeExtension();
-	protected abstract String getStandardOpenOfficeExtension();
+   protected static File openOfficeTemplateProfileDir = null;
 
-	public void setImageSize(int thumbWidth, int thumbHeight, int imageResizeOptions) {
-		super.setImageSize(thumbWidth, thumbHeight, imageResizeOptions);
-		ooo_thumbnailer.setImageSize(thumbWidth, thumbHeight, imageResizeOptions);
-	}
+
+   public JODConverterThumbnailer() {
+      this.ooo_thumbnailer = new OpenOfficeThumbnailer();
+      this.mimeTypeDetector = new MimeTypeDetector();
+      this.temporaryFilesManager = new TemporaryFilesManager();
+   }
+
+
+
+
+   public static void setOpenOfficePort(final int openOfficePort) {
+      if (openOfficePort > 0) {
+         JODConverterThumbnailer.openOfficePort = openOfficePort;
+      }
+   }
+
+   public static void setOpenOfficeHomeFolder(final String openOfficeHomeFolder) {
+      JODConverterThumbnailer.openOfficeHomeFolder = openOfficeHomeFolder;
+   }
+
+   public static void setOpenOfficeProfileFolder(final String paramOpenOfficeProfile) {
+      if (paramOpenOfficeProfile != null) {
+         JODConverterThumbnailer.openOfficeTemplateProfileDir = new File(paramOpenOfficeProfile);
+      }
+   }
+
+   /**
+    * Start OpenOffice-Service and connect to it. (Does not reconnect if already connected.)
+    */
+   public static void connect() {
+      connect(false);
+   }
+
+   /**
+    * Start OpenOffice-Service and connect to it.
+    *
+    * @param forceReconnect
+    *           Connect even if he is already connected.
+    */
+   public static void connect(final boolean forceReconnect) {
+      if (!forceReconnect && isConnected()) {
+         return;
+      }
+
+      final DefaultOfficeManagerConfiguration config =
+            new DefaultOfficeManagerConfiguration().setPortNumber(
+                  JODConverterThumbnailer.openOfficePort).setTaskExecutionTimeout(
+                  JODConverterThumbnailer.JOD_DOCUMENT_TIMEOUT);
+
+      if (JODConverterThumbnailer.openOfficeHomeFolder != null) {
+         config.setOfficeHome(JODConverterThumbnailer.openOfficeHomeFolder);
+      }
+
+      if (JODConverterThumbnailer.openOfficeTemplateProfileDir != null) {
+         if (JODConverterThumbnailer.openOfficeTemplateProfileDir.exists()) {
+            config.setTemplateProfileDir(JODConverterThumbnailer.openOfficeTemplateProfileDir);
+         } else {
+            JODConverterThumbnailer.mLog.info("No Template Profile Folder found at " + JODConverterThumbnailer.openOfficeTemplateProfileDir.getAbsolutePath()
+                  + " - Creating temporary one.");
+         }
+      } else {
+         JODConverterThumbnailer.mLog.info("Creating temporary profile folder...");
+      }
+
+      JODConverterThumbnailer.officeManager = config.buildOfficeManager();
+      JODConverterThumbnailer.officeManager.start();
+
+      JODConverterThumbnailer.officeConverter =
+            new OfficeDocumentConverter(JODConverterThumbnailer.officeManager);
+   }
+
+   /**
+    * Check if a connection to OpenOffice is established.
+    *
+    * @return True if connected.
+    */
+   public static boolean isConnected() {
+      return JODConverterThumbnailer.officeManager != null && JODConverterThumbnailer.officeManager.isRunning();
+   }
+
+   /**
+    * Stop the OpenOffice Process and disconnect.
+    */
+   public static void disconnect() {
+      // close the connection
+      if (JODConverterThumbnailer.officeManager != null) {
+         JODConverterThumbnailer.officeManager.stop();
+      }
+      JODConverterThumbnailer.officeManager = null;
+   }
+
+   @Override
+   public void close() throws IOException {
+      try {
+         try {
+            this.temporaryFilesManager.deleteAllTempfiles();
+            this.ooo_thumbnailer.close();
+         } finally {
+            disconnect();
+         }
+      } finally {
+         super.close();
+      }
+   }
+
+   /**
+    * Generates a thumbnail of Office files.
+    *
+    * @param input
+    *           Input file that should be processed
+    * @param output
+    *           File in which should be written
+    * @throws IOException
+    *            If file cannot be read/written
+    * @throws ThumbnailerException
+    *            If the thumbnailing process failed.
+    */
+   @Override
+   public void generateThumbnail(final File input, final File output) throws IOException, ThumbnailerException {
+      this.checkConnecton();
+      File outputTmp = null;
+      try {
+         outputTmp = this.convertToOpenOfficeFile(input);
+         this.ooo_thumbnailer.generateThumbnail(outputTmp, output);
+      } finally {
+         IOUtil.deleteQuietlyForce(outputTmp);
+      }
+   }
+
+
+  private File convertToOpenOfficeFile(final File input) throws IOException, ThumbnailerException {
+    final File outputTmp = File.createTempFile(JODConverterThumbnailer.TEMP_FILE, "." + this.getStandardOpenOfficeExtension());
+    final File checkedInput = this.checkInputPath(input);
+
+     try {
+         JODConverterThumbnailer.officeConverter.convert(checkedInput, outputTmp);
+     } catch (final OfficeException e) {
+        throw new ThumbnailerException("Could not convert into OpenOffice-File", e);
+     }
+     if (outputTmp.length() == 0) {
+        throw new ThumbnailerException("Could not convert into OpenOffice-File (file was empty)...");
+     }
+    return outputTmp;
+  }
+
+
+
+
+  private File checkInputPath(File input) {
+    // Naughty hack to circumvent invalid URLs under windows (C:\\ ...)
+     if (Platform.isWindows()) {
+        input = new File(input.getAbsolutePath().replace("\\\\", "\\"));
+     }
+    return input;
+  }
+
+
+  private File convertToPdf(final File input) throws ThumbnailerException, IOException {
+    final File tempFile = File.createTempFile(JODConverterThumbnailer.TEMP_FILE, ".pdf");
+    final File checkedInput = this.checkInputPath(input);
+    try {
+      final DocumentFormat format = JODConverterThumbnailer.officeConverter.getFormatRegistry().getFormatByExtension("pdf");
+      JODConverterThumbnailer.officeConverter.convert(checkedInput, tempFile, format);
+    } catch (final OfficeException e) {
+      throw new ThumbnailerException("Could not convert into PDF file", e);
+    }
+    if (tempFile.length() == 0) {
+      throw new ThumbnailerException("Could not convert into PDF file (file was empty)");
+    }
+    return tempFile;
+  }
+
+
+  private void checkConnecton() {
+    // Connect on first use
+    if (!isConnected()) {
+       connect();
+    }
+  }
+
+
+   /**
+    * Generate a Thumbnail of the input file. (Fix file ending according to MIME-Type).
+    *
+    * @param input
+    *           Input file that should be processed
+    * @param output
+    *           File in which should be written
+    * @param mimeType
+    *           MIME-Type of input file (null if unknown)
+    * @throws IOException
+    *            If file cannot be read/written
+    * @throws ThumbnailerException
+    *            If the thumbnailing process failed.
+    */
+   @Override
+   public void generateThumbnail(final File input, final File output, final String mimeType) throws IOException, ThumbnailerException {
+      final File checkedInput = this.checkExtensionForMimeType(input, mimeType);
+      this.generateThumbnail(checkedInput, output);
+   }
+
+
+   @Override
+   public void generateThumbnails(final File input, final File outputFolder, final String mimeType) throws IOException, ThumbnailerException {
+     final File checkedInput = this.checkExtensionForMimeType(input, mimeType);
+     this.generateThumbnails(checkedInput, outputFolder);
+   }
+
+
+   @Override
+   public void generateThumbnails(final File input, final File outputFolder) throws IOException, ThumbnailerException {
+     this.checkConnecton();
+     File tempPdfFile = null;
+     PDFBoxThumbnailer pdfNailer = null;
+     try {
+        tempPdfFile = this.convertToPdf(input);
+        // invoke the converter for PDF files
+        pdfNailer = new PDFBoxThumbnailer();
+        pdfNailer.generateThumbnails(tempPdfFile, outputFolder);
+     } finally {
+       if (pdfNailer != null) {
+         pdfNailer.close();
+       }
+        IOUtil.deleteQuietlyForce(tempPdfFile);
+     }
+   }
+
+
+  private File checkExtensionForMimeType(File input, final String mimeType) throws IOException {
+    final String ext = FilenameUtils.getExtension(input.getName());
+    if (!this.mimeTypeDetector.doesExtensionMatchMimeType(ext, mimeType)) {
+       String newExt;
+       if ("application/zip".equals(mimeType)) {
+          newExt = this.getStandardZipExtension();
+       } else if ("application/vnd.ms-office".equals(mimeType)) {
+          newExt = this.getStandardOfficeExtension();
+       } else {
+          newExt = this.mimeTypeDetector.getStandardExtensionForMimeType(mimeType);
+       }
+
+       input = this.temporaryFilesManager.createTempfileCopy(input, newExt);
+    }
+    return input;
+  }
+
+   protected abstract String getStandardZipExtension();
+
+   protected abstract String getStandardOfficeExtension();
+
+   protected abstract String getStandardOpenOfficeExtension();
+
+   @Override
+   public void setImageSize(final int thumbWidth, final int thumbHeight,
+         final int imageResizeOptions) {
+      super.setImageSize(thumbWidth, thumbHeight, imageResizeOptions);
+      this.ooo_thumbnailer.setImageSize(thumbWidth, thumbHeight, imageResizeOptions);
+   }
 }

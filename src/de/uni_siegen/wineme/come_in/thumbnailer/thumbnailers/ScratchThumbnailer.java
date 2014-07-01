@@ -26,103 +26,111 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Hashtable;
-import java.util.Map.Entry;
 
 import de.uni_siegen.wineme.come_in.thumbnailer.ThumbnailerException;
 import de.uni_siegen.wineme.come_in.thumbnailer.util.IOUtil;
 import de.uni_siegen.wineme.come_in.thumbnailer.util.ResizeImage;
 import de.uni_siegen.wineme.come_in.thumbnailer.util.mime.ScratchFileIdentifier;
-
-import edu.mit.scratch.*;
+import edu.mit.scratch.ObjReader;
 
 /**
  * This Thumbnailer extracts the Thumbnail from Scratch files.
  * This Thumbnail is generated from the start screen of the project.
- * 
+ *
  * (Scratch is a visual programming language for children.)
  * @author Benjamin
  * @TODO invent MIME type for scratch projects?
- * 
+ *
  * Depends on:
  * <li>ScratchApplet (needs modification: Move all classes to package "edu.mit.scratch" and make ObjReader public).
  */
 public class ScratchThumbnailer extends AbstractThumbnailer {
-	
+
 	/**
 	 * Generate a thumbnail from a Scratch file.
-	 * 
+	 *
 	 * Adapted from GetThumbnail version 1.1, Jan Rochat 2009
 	 * @see http://scratch.mit.edu/forums/viewtopic.php?id=13463
-	 * 
+	 *
 	 * @param input		Scratch file to process
 	 * @param output 	Where to save the thumbnail
 	 * @throws ThumbnailerException If input is not a scratch file
 	 * @throws IOException			If output cannot be written.
 	 */
-	public void generateThumbnail(File input, File output) throws ThumbnailerException, IOException
+	public void generateThumbnail(final File input, final File output) throws ThumbnailerException, IOException
 	{
 		FileInputStream in = null;
 		try {
 			in = new FileInputStream(input);
-			ObjReader reader = new ObjReader(in);
-	
+			final ObjReader reader = new ObjReader(in);
+
 			Hashtable<?,?> parsedScratchFile;
 			try {
 				 parsedScratchFile = reader.readInfo();
-			} catch (IOException e) {
+			} catch (final IOException e) {
 				throw new ThumbnailerException("Error - Is this really a scratch project file?");
 			}
-			
-			BufferedImage image = (BufferedImage) parsedScratchFile.get("thumbnail");
+
+			final BufferedImage image = (BufferedImage) parsedScratchFile.get("thumbnail");
 
 			/* Output internal data of Scratch files for debug purposes
-			
+
 			debugOutputHashtable(parsedScratchFile);
-			
+
 			// Rewind
 			in = new FileInputStream(input);
 			reader = new ObjReader(in);
-			
+
 			debugOutputObjects(reader.readObjects(null));
 			*/
 
-			ResizeImage imageResizer = new ResizeImage(thumbWidth, thumbHeight);
+			final ResizeImage imageResizer = new ResizeImage(this.thumbWidth, this.thumbHeight);
 			imageResizer.setInputImage(image);
 			imageResizer.writeOutput(output);
 		} finally {
 			IOUtil.quietlyClose(in);
 		}
 	}
-	
-	private void debugOutputObjects(Object[][] readObjects) {
+
+/*
+	private void debugOutputObjects(final Object[][] readObjects) {
 		for (int i = 0; i < readObjects.length; i++)
 		{
 			for (int j = 0; j < readObjects[i].length; j++)
 			{
 				String str = readObjects[i][j].toString();
-				if (!(readObjects[i][j] instanceof String))
-					str = readObjects[i][j].getClass().getName() + ":" + str;
+				if (!(readObjects[i][j] instanceof String)) {
+               str = readObjects[i][j].getClass().getName() + ":" + str;
+            }
 				System.out.println("obj[" + i + "][" + j + "]: " + readObjects[i][j]);
 			}
 		}
 	}
 
-	private void debugOutputHashtable(Hashtable<?, ?> parsedScratchFile) {
-		for (Entry<?, ?> key : parsedScratchFile.entrySet())
+	private void debugOutputHashtable(final Hashtable<?, ?> parsedScratchFile) {
+		for (final Entry<?, ?> key : parsedScratchFile.entrySet())
 		{
 			System.out.println("Key: " + key.getKey() + " Value: " + key.getValue());
 		}
 	}
+*/
+
+   @Override
+   public void generateThumbnails(final File input, final File outputFolder) throws IOException, ThumbnailerException {
+      throw new ThumbnailerException(new UnsupportedOperationException("This thumbnailer only generates single thumbnails. Use #generateThumbnail for this."));
+   }
+
 
 	/**
 	 * Get a list of all MIME Types that this Thumbnailer is ready to process.
 	 * You should override this method in order to give hints when which Thumbnailer is most appropriate.
 	 * If you do not override this method, the Thumbnailer will be called in any case - awaiting a ThumbnailException if
 	 * this thumbnailer cannot treat such a file.
-	 * 
+	 *
 	 * @return List of MIME Types. If null, all Files may be passed to this Thumbnailer.
-	 */	
-	public String[] getAcceptedMIMETypes()
+	 */
+	@Override
+   public String[] getAcceptedMIMETypes()
 	{
 		return new String[]{ScratchFileIdentifier.SCRATCH_MIME_TYPE};
 	}
