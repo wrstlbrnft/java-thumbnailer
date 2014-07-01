@@ -177,6 +177,7 @@ public class ThumbnailerManager implements Thumbnailer, ThumbnailerConstants {
       final int lastDotPosition = inputFileName.lastIndexOf('.');
       final String nameWithoutExtension = inputFileName.substring(0, lastDotPosition);
       final File folder = new File(this.thumbnailFolder, nameWithoutExtension + "-" + System.currentTimeMillis());
+
       return folder;
 	}
 
@@ -371,15 +372,21 @@ public class ThumbnailerManager implements Thumbnailer, ThumbnailerConstants {
       }
 
       if (mimeType != null) {
+        // create the folder for the thumbnail output
+        outputFolder.mkdirs();
+        // execute thumbnailers for this mime type
          generated = this.executeThumbnailers(mimeType, input, outputFolder, mimeType, false);
       }
 
-      // Try again using wildcard thumbnailers
       if (!generated) {
+        // Try again using wildcard thumbnailers
          generated = this.executeThumbnailers(ThumbnailerManager.ALL_MIME_WILDCARD, input, outputFolder, mimeType, false);
       }
 
       if (!generated) {
+        // remove the subfolder again - it has not been used
+        outputFolder.delete();
+
          throw new ThumbnailerException("No suitable Thumbnailer has been found. (File: " + input.getName() + " ; Detected MIME: " + mimeType + ")");
       }
    }
@@ -405,7 +412,7 @@ public class ThumbnailerManager implements Thumbnailer, ThumbnailerConstants {
 			   if (firstPageOnly) {
 			      thumbnailer.generateThumbnail(input, output, detectedMimeType);
 			   } else {
-			      thumbnailer.generateThumbnails(input, output);
+			      thumbnailer.generateThumbnails(input, output, detectedMimeType);
 			   }
 				return true;
 			} catch (final ThumbnailerException e) {

@@ -157,7 +157,7 @@ public abstract class AbstractThumbnailer implements Thumbnailer, ThumbnailerCon
 
 	@Override
 	public void generateThumbnails(final File input, final File outputFolder, final String mimeType) throws IOException, ThumbnailerException {
-	// Ignore MIME-Type-Hint
-      this.generateThumbnails(input, outputFolder);
+	  // Ignore MIME-Type-Hint
+     this.generateThumbnails(input, outputFolder);
 	}
 }

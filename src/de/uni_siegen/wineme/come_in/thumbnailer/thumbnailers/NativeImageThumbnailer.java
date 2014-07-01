@@ -52,7 +52,8 @@ public class NativeImageThumbnailer extends AbstractThumbnailer {
 
 	@Override
 	public void generateThumbnails(final File input, final File outputFolder) throws IOException, ThumbnailerException {
-	   throw new ThumbnailerException(new UnsupportedOperationException("This thumbnailer only generates single thumbnails. Use #generateThumbnail for this."));
+	   final File output = new File(outputFolder, outputFolder.getName() + ".png");
+    this.generateThumbnail(input, output);
 	}
 
     /**
