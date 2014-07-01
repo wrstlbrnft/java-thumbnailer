@@ -111,6 +111,7 @@ public class OpenOfficeThumbnailer extends AbstractThumbnailer {
        tempPdfFile = this.convertToPdf(input);
        // invoke the converter for PDF files
        pdfNailer = new PDFBoxThumbnailer();
+       pdfNailer.setImageSize(this.thumbWidth, this.thumbHeight, this.imageResizeOptions);
        pdfNailer.generateThumbnails(tempPdfFile, outputFolder);
     } finally {
       if (pdfNailer != null) {
