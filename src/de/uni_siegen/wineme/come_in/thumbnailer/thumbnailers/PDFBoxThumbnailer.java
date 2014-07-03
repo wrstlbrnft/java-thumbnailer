@@ -135,7 +135,6 @@ public class PDFBoxThumbnailer extends AbstractThumbnailer {
 
              final String outputFileName = outputFolder.getName() + "-" + pageNumber + ".png";
              final File outputFile = new File(outputFolder, outputFileName);
-             System.out.println(outputFile.getAbsolutePath());
 
              if (image.getWidth() == this.thumbWidth) {
                 ImageIO.write(image, PDFBoxThumbnailer.OUTPUT_FORMAT, outputFile);
