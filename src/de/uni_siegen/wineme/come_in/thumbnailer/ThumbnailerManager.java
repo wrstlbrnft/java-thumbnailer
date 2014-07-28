@@ -21,6 +21,7 @@
 
 package de.uni_siegen.wineme.come_in.thumbnailer;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.util.LinkedList;
@@ -45,7 +46,7 @@ import de.uni_siegen.wineme.come_in.thumbnailer.util.mime.MimeTypeDetector;
  *
  * @author Benjamin
  */
-public class ThumbnailerManager implements Thumbnailer, ThumbnailerConstants {
+public class ThumbnailerManager implements ThumbnailerConstants, Closeable {
 
 	/**
 	 * @var Starting estimate of the number of mime types that the thumbnailer can manager
@@ -235,10 +236,10 @@ public class ThumbnailerManager implements Thumbnailer, ThumbnailerConstants {
 	 * @throws ThumbnailerException
 	 * @throws IOException
 	 */
-	public File createThumbnails(final File input) throws IOException, ThumbnailerException {
+	public ThumbnailGenerationResult createThumbnails(final File input) throws IOException {
 	   final File outputFolder = this.chooseThumbnailFolder(input);
-	   this.generateThumbnails(input, outputFolder);
-	   return outputFolder;
+	   final ThumbnailGenerationResult result = this.generateThumbnails(input, outputFolder);
+	   return result;
 	}
 
 
@@ -356,11 +357,11 @@ public class ThumbnailerManager implements Thumbnailer, ThumbnailerConstants {
 	}
 
 
-	public void generateThumbnails(final File input, final File outputFolder) throws IOException, ThumbnailerException {
-	   this.generateThumbnails(input, outputFolder, null);
+	public ThumbnailGenerationResult generateThumbnails(final File input, final File outputFolder) throws IOException {
+	   return this.generateThumbnails(input, outputFolder, null);
 	}
 
-	public void generateThumbnails(final File input, final File outputFolder, String mimeType) throws IOException, ThumbnailerException {
+	public ThumbnailGenerationResult generateThumbnails(final File input, final File outputFolder, String mimeType) throws IOException {
       FileDoesNotExistException.check(input);
 
       boolean generated = false;
@@ -383,12 +384,14 @@ public class ThumbnailerManager implements Thumbnailer, ThumbnailerConstants {
          generated = this.executeThumbnailers(ThumbnailerManager.ALL_MIME_WILDCARD, input, outputFolder, mimeType, false);
       }
 
-      if (!generated) {
-        // remove the subfolder again - it has not been used
-        outputFolder.delete();
-
-         throw new ThumbnailerException("No suitable Thumbnailer has been found. (File: " + input.getName() + " ; Detected MIME: " + mimeType + ")");
+      if (generated) {
+        return new ThumbnailGenerationResult(mimeType, outputFolder, true);
       }
+
+      // remove the subfolder again - it has not been used
+      outputFolder.delete();
+      //throw new ThumbnailerException("No suitable Thumbnailer has been found. (File: " + input.getName() + " ; Detected MIME: " + mimeType + ")");
+      return new ThumbnailGenerationResult(mimeType, null, false);
    }
 
 
