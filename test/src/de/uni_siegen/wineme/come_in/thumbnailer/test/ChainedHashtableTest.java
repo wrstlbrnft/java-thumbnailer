@@ -39,7 +39,7 @@ public class ChainedHashtableTest {
 		data.put(1, "one");
 		
 		assertNotNull(data.remove(1));
-		assertTrue(data.remove(2, "two"));
+		assertTrue(data.removeByKeyAndValue(2, "two"));
 		
 		assertSize(0, 0, data);
 	}
@@ -77,10 +77,10 @@ public class ChainedHashtableTest {
 		data.put(2, "zwei");
 		assertSize(3, 2, data);
 		
-		data.remove(1, "one");
+		data.removeByKeyAndValue(1, "one");
 		assertSize(2, 1, data);
 
-		data.remove(2, "two");
+		data.removeByKeyAndValue(2, "two");
 		assertSize(1, 1, data);
 	}
 	
@@ -134,7 +134,7 @@ public class ChainedHashtableTest {
 		assertTrue(collection.remove("one"));
 		assertSize(1, 1, data);
 		
-		assertTrue(data.remove(2, "two"));
+		assertTrue(data.removeByKeyAndValue(2, "two"));
 		assertSize(0, 0, data);
 		assertEquals("Hashmap changed, but collection(values()) didn't", 0, collection.size());
 	}
@@ -151,7 +151,7 @@ public class ChainedHashtableTest {
 		assertTrue(collection.remove("one"));
 		assertSize(1, 1, data);
 
-		assertTrue(data.remove(2, "two"));
+		assertTrue(data.removeByKeyAndValue(2, "two"));
 		assertSize(0, 0, data);
 		assertEquals("Hashmap changed, but collection(values()) didn't", 0, collection.size());
 	}
