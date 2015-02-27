@@ -95,7 +95,7 @@ public abstract class JODConverterThumbnailer extends AbstractThumbnailer {
    /**
     * How long may a conversion take? (in ms)
     */
-   private static final long JOD_DOCUMENT_TIMEOUT = 12000;
+   private static final long JOD_DOCUMENT_TIMEOUT = 120000;
 
 
 
