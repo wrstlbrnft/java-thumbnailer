@@ -38,6 +38,7 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 
+import de.uni_siegen.wineme.come_in.thumbnailer.ThumbnailNamer;
 import de.uni_siegen.wineme.come_in.thumbnailer.ThumbnailerException;
 import de.uni_siegen.wineme.come_in.thumbnailer.util.ResizeImage;
 
@@ -133,8 +134,7 @@ public class PDFBoxThumbnailer extends AbstractThumbnailer {
           for (final PDPage page : allPages) {
              final BufferedImage image = this.writeImageForPage(document, page, BufferedImage.TYPE_INT_RGB);
 
-             final String outputFileName = outputFolder.getName() + "-" + pageNumber + ".png";
-             final File outputFile = new File(outputFolder, outputFileName);
+             final File outputFile = ThumbnailNamer.getFile(outputFolder, pageNumber);
 
              if (image.getWidth() == this.thumbWidth) {
                 ImageIO.write(image, PDFBoxThumbnailer.OUTPUT_FORMAT, outputFile);

@@ -229,16 +229,17 @@ public class ThumbnailerManager implements ThumbnailerConstants, Closeable {
 
 
 	/**
-	 * Generates a thumbnail for each page of the input file.
+	 * Generates thumbnails for the input file.
 	 *
 	 * @param input file that should be processed
-	 * @return the folder containing the generated thumbnails
+	 * @param firstPageOnly whether only one thumbnail for the first page should be generated or one for each page
+	 * @return result of the generation process
 	 * @throws ThumbnailerException
 	 * @throws IOException
 	 */
-	public ThumbnailGenerationResult createThumbnails(final File input) throws IOException {
+	public ThumbnailGenerationResult createThumbnails(final File input, final boolean firstPageOnly) throws IOException {
 	   final File outputFolder = this.chooseThumbnailFolder(input);
-	   final ThumbnailGenerationResult result = this.generateThumbnails(input, outputFolder);
+	   final ThumbnailGenerationResult result = this.generateThumbnails(input, outputFolder, firstPageOnly);
 	   return result;
 	}
 
@@ -357,11 +358,11 @@ public class ThumbnailerManager implements ThumbnailerConstants, Closeable {
 	}
 
 
-	public ThumbnailGenerationResult generateThumbnails(final File input, final File outputFolder) throws IOException {
-	   return this.generateThumbnails(input, outputFolder, null);
+	public ThumbnailGenerationResult generateThumbnails(final File input, final File outputFolder, final boolean firstPageOnly) throws IOException {
+	   return this.generateThumbnails(input, outputFolder, null, firstPageOnly);
 	}
 
-	public ThumbnailGenerationResult generateThumbnails(final File input, final File outputFolder, String mimeType) throws IOException {
+	public ThumbnailGenerationResult generateThumbnails(final File input, final File outputFolder, String mimeType, final boolean firstPageOnly) throws IOException {
       FileDoesNotExistException.check(input);
 
       boolean generated = false;
@@ -372,24 +373,39 @@ public class ThumbnailerManager implements ThumbnailerConstants, Closeable {
          ThumbnailerManager.mLog.debug("Detected MIME type: " + mimeType);
       }
 
+      File output = null;
+      if (firstPageOnly) {
+        // we only generate one thumbnail so we have to set the output to its file name
+        output = ThumbnailNamer.getFile(outputFolder, 1);
+      } else {
+        // output is a folder for multiple thumbnails
+        output = outputFolder;
+      }
+
       if (mimeType != null) {
         // create the folder for the thumbnail output
         outputFolder.mkdirs();
+
         // execute thumbnailers for this mime type
-         generated = this.executeThumbnailers(mimeType, input, outputFolder, mimeType, false);
+         generated = this.executeThumbnailers(mimeType, input, output, mimeType, firstPageOnly);
       }
 
       if (!generated) {
         // Try again using wildcard thumbnailers
-         generated = this.executeThumbnailers(ThumbnailerManager.ALL_MIME_WILDCARD, input, outputFolder, mimeType, false);
+         generated = this.executeThumbnailers(ThumbnailerManager.ALL_MIME_WILDCARD, input, output, mimeType, firstPageOnly);
       }
 
       if (generated) {
         return new ThumbnailGenerationResult(mimeType, outputFolder, true);
       }
 
-      // remove the subfolder again - it has not been used
-      outputFolder.delete();
+      // remove the output file/folder - they have not been used
+      if (output.exists()) {
+        output.delete();
+      }
+      if (outputFolder.exists()) {
+        outputFolder.delete();
+      }
       //throw new ThumbnailerException("No suitable Thumbnailer has been found. (File: " + input.getName() + " ; Detected MIME: " + mimeType + ")");
       return new ThumbnailGenerationResult(mimeType, null, false);
    }
