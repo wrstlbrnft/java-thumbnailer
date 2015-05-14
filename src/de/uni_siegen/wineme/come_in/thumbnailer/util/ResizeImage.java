@@ -37,199 +37,196 @@ import de.uni_siegen.wineme.come_in.thumbnailer.UnsupportedInputFileFormatExcept
 
 /**
  * Resize an image.
- * 
+ *
  * @author Benjamin
  * @TODO Comment. Refactor?? (3 lines of code per generation)
  */
 public class ResizeImage {
 
-	/** The logger for this class */
-	private static final Logger mLog = Logger.getLogger(ResizeImage.class);
+  /** The logger for this class */
+  private static final Logger mLog = Logger.getLogger(ResizeImage.class);
 
-	
-	BufferedImage inputImage;
-	private boolean isProcessed = false;
-	BufferedImage outputImage;
-	
-	private int imageWidth;
-	private int imageHeight;
-	private int thumbWidth;
-	private int thumbHeight;
-	private double resizeRatio = 1.0;
-	
-	/**
-	 * Scale input image so that width and height is equal (or smaller) to the output size. 
-	 * The other dimension will be smaller or equal than the output size.
-	 */
-	public static final int RESIZE_FIT_BOTH_DIMENSIONS = 2;
-	
-	/**
-	 * Scale input image so that width or height is equal to the output size. 
-	 * The other dimension will be bigger or equal than the output size.
-	 */
-	public static final int RESIZE_FIT_ONE_DIMENSION = 3;
-	
-	/**
-	 * Do not resize the image. Instead, crop the image (if smaller) or center it (if bigger)
-	 */
-	public static final int NO_RESIZE_ONLY_CROP = 4;
-	
-	/**
-	 * Do not try to scale the image up, only down. If bigger, center it.
-	 */
-	public static final int DO_NOT_SCALE_UP = 16;
+  BufferedImage inputImage;
+  private boolean isProcessed = false;
+  BufferedImage outputImage;
 
-	/**
-	 * If output image is bigger than input image, allow the output to be smaller than expected (the size of the input image)
-	 */
-	public static final int ALLOW_SMALLER = 32;
-	
-	public int resizeMethod = RESIZE_FIT_ONE_DIMENSION;
-	public int extraOptions = DO_NOT_SCALE_UP;
-	
-	private int scaledWidth;
-	private int scaledHeight;
-	private int offsetX;
-	private int offsetY;
+  private int imageWidth;
+  private int imageHeight;
+  private int thumbWidth;
+  private int thumbHeight;
+  private double resizeRatio = 1.0;
 
+  /**
+   * Scale input image so that width and height is equal (or smaller) to the output size. The other
+   * dimension will be smaller or equal than the output size.
+   */
+  public static final int RESIZE_FIT_BOTH_DIMENSIONS = 2;
 
-	
-	public ResizeImage(int thumbWidth, int thumbHeight)
-	{
-		this.thumbWidth = thumbWidth;
-		this.thumbHeight = thumbHeight;
-	}
-	
-	public void setInputImage(File input) throws IOException
-	{
-		BufferedImage image = ImageIO.read(input);
-		setInputImage(image);
-	}
-	
-	public void setInputImage(InputStream input) throws IOException
-	{
-		BufferedImage image = ImageIO.read(input);
-		setInputImage(image);
-	}
-	
-	public void setInputImage(BufferedImage input) throws UnsupportedInputFileFormatException
-	{
-		if (input == null)
-			throw new UnsupportedInputFileFormatException("The image reader could not open the file.");
-		
-		this.inputImage = input;
-		isProcessed = false;
-		imageWidth    = inputImage.getWidth(null);
-		imageHeight   = inputImage.getHeight(null);
-	}
-	
-	public void writeOutput(File output) throws IOException
-	{
-		writeOutput(output, "PNG");				
-	}
+  /**
+   * Scale input image so that width or height is equal to the output size. The other dimension
+   * will be bigger or equal than the output size.
+   */
+  public static final int RESIZE_FIT_ONE_DIMENSION = 3;
 
-	public void writeOutput(File output, String format) throws IOException
-	{
-		if (!isProcessed)
-			process();
-		
-		ImageIO.write(outputImage, format, output);				
-	}
-	
-	private void process()
-	{		
-		if (imageWidth == thumbWidth && imageHeight == thumbHeight)
-			outputImage = inputImage;
-		else
-		{
-			calcDimensions(resizeMethod);
-			paint();
-		}
-		
-		isProcessed = true;	
-	}
-	
-	private void calcDimensions(int resizeMethod)
-	{
-		switch (resizeMethod)
-		{
-			case RESIZE_FIT_BOTH_DIMENSIONS:
-				resizeRatio = Math.min(((double) thumbWidth) / imageWidth, ((double) thumbHeight) / imageHeight);
-				break;
-				
-			case RESIZE_FIT_ONE_DIMENSION:
-				resizeRatio = Math.max(((double) thumbWidth) / imageWidth, ((double) thumbHeight) / imageHeight);
-				break;
+  /**
+   * Do not resize the image. Instead, crop the image (if smaller) or center it (if bigger)
+   */
+  public static final int NO_RESIZE_ONLY_CROP = 4;
 
-			case NO_RESIZE_ONLY_CROP:
-				resizeRatio = 1.0;
-				break;
-		}
-		if ((extraOptions & DO_NOT_SCALE_UP) > 0)
-			if (resizeRatio > 1.0)
-				resizeRatio = 1.0;
+  /**
+   * Do not try to scale the image up, only down. If bigger, center it.
+   */
+  public static final int DO_NOT_SCALE_UP = 16;
+
+  /**
+   * If output image is bigger than input image, allow the output to be smaller than expected (the
+   * size of the input image)
+   */
+  public static final int ALLOW_SMALLER = 32;
+
+  public int resizeMethod = ResizeImage.RESIZE_FIT_BOTH_DIMENSIONS;
+  public int extraOptions = ResizeImage.DO_NOT_SCALE_UP;
+
+  private int scaledWidth;
+  private int scaledHeight;
+  private int offsetX;
+  private int offsetY;
 
 
-		scaledWidth = (int) Math.round(imageWidth * resizeRatio);
-		scaledHeight = (int) Math.round(imageHeight * resizeRatio);
+  public ResizeImage(final int thumbWidth, final int thumbHeight) {
+    this.thumbWidth = thumbWidth;
+    this.thumbHeight = thumbHeight;
+  }
 
-		if ((extraOptions & ALLOW_SMALLER) > 0) {
-			if (scaledWidth < thumbWidth && scaledHeight < thumbHeight)
-			{
-				thumbWidth = scaledWidth;
-				thumbHeight = scaledHeight;
-			}
-		}
-		
-		// Center if smaller.
-		if (scaledWidth  < thumbWidth)
-			offsetX = (thumbWidth  - scaledWidth)  / 2;
-		else
-			offsetX = 0;
 
-		if (scaledHeight < thumbHeight)
-			offsetY = (thumbHeight - scaledHeight) / 2;
-		else
-			offsetY = 0;
-	}
-	
-	private void paint()
-	{
-		outputImage = new BufferedImage(thumbWidth, thumbHeight, BufferedImage.TYPE_INT_ARGB);
+  public void setInputImage(final File input) throws IOException {
+    final BufferedImage image = ImageIO.read(input);
+    this.setInputImage(image);
+  }
 
-		Graphics2D graphics2D = outputImage.createGraphics();
-		
-		// Fill background with white color
-		graphics2D.setBackground(Color.WHITE);
-		graphics2D.setPaint(Color.WHITE); 
-		graphics2D.fillRect(0, 0, thumbWidth, thumbHeight);
 
-		// Enable smooth, high-quality resampling
-		graphics2D.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+  public void setInputImage(final InputStream input) throws IOException {
+    final BufferedImage image = ImageIO.read(input);
+    this.setInputImage(image);
+  }
 
-		ThumbnailReadyObserver observer = new ThumbnailReadyObserver(Thread.currentThread());
-		boolean scalingComplete = graphics2D.drawImage(inputImage, offsetX, offsetY, scaledWidth, scaledHeight, observer);
-		
-		if (!scalingComplete && observer != null)
-		{
-			// ImageObserver must wait for ready
-			if (mLog.isDebugEnabled()) 
-				throw new RuntimeException("Scaling is not yet complete!");
-			else
-			{
-				mLog.warn("ResizeImage: Scaling is not yet complete!");
-			
-				while(!observer.ready)
-				{
-					System.err.println("Waiting .4 sec...");
-					try {
-						Thread.sleep(400);
-					} catch (InterruptedException e) {
-					}
-				}
-			}
-		}
-		
-		graphics2D.dispose();
-	}
+
+  public void setInputImage(final BufferedImage input) throws UnsupportedInputFileFormatException {
+    if (input == null) {
+      throw new UnsupportedInputFileFormatException("The image reader could not open the file.");
+    }
+
+    this.inputImage = input;
+    this.isProcessed = false;
+    this.imageWidth = this.inputImage.getWidth(null);
+    this.imageHeight = this.inputImage.getHeight(null);
+  }
+
+
+  public void writeOutput(final File output) throws IOException {
+    this.writeOutput(output, "PNG");
+  }
+
+
+  public void writeOutput(final File output, final String format) throws IOException {
+    if (!this.isProcessed) {
+      this.process();
+    }
+
+    ImageIO.write(this.outputImage, format, output);
+  }
+
+
+  private void process() {
+    if (this.imageWidth == this.thumbWidth && this.imageHeight == this.thumbHeight) {
+      this.outputImage = this.inputImage;
+    } else {
+      this.calcDimensions(this.resizeMethod);
+      this.paint();
+    }
+
+    this.isProcessed = true;
+  }
+
+
+  private void calcDimensions(final int resizeMethod) {
+    switch (resizeMethod) {
+      case RESIZE_FIT_BOTH_DIMENSIONS:
+        this.resizeRatio = Math.min((double) this.thumbWidth / this.imageWidth, (double) this.thumbHeight / this.imageHeight);
+        break;
+
+      case RESIZE_FIT_ONE_DIMENSION:
+        this.resizeRatio = Math.max((double) this.thumbWidth / this.imageWidth, (double) this.thumbHeight / this.imageHeight);
+        break;
+
+      case NO_RESIZE_ONLY_CROP:
+        this.resizeRatio = 1.0;
+        break;
+    }
+    if ((this.extraOptions & ResizeImage.DO_NOT_SCALE_UP) > 0) {
+      if (this.resizeRatio > 1.0) {
+        this.resizeRatio = 1.0;
+      }
+    }
+
+    this.scaledWidth = (int) Math.round(this.imageWidth * this.resizeRatio);
+    this.scaledHeight = (int) Math.round(this.imageHeight * this.resizeRatio);
+
+    if ((this.extraOptions & ResizeImage.ALLOW_SMALLER) > 0) {
+      if (this.scaledWidth < this.thumbWidth && this.scaledHeight < this.thumbHeight) {
+        this.thumbWidth = this.scaledWidth;
+        this.thumbHeight = this.scaledHeight;
+      }
+    }
+
+    // Center if smaller.
+    if (this.scaledWidth < this.thumbWidth) {
+      this.offsetX = (this.thumbWidth - this.scaledWidth) / 2;
+    } else {
+      this.offsetX = 0;
+    }
+
+    if (this.scaledHeight < this.thumbHeight) {
+      this.offsetY = (this.thumbHeight - this.scaledHeight) / 2;
+    } else {
+      this.offsetY = 0;
+    }
+  }
+
+
+  private void paint() {
+    this.outputImage = new BufferedImage(this.thumbWidth, this.thumbHeight, BufferedImage.TYPE_INT_ARGB);
+
+    final Graphics2D graphics2D = this.outputImage.createGraphics();
+
+    // Fill background with white color
+    graphics2D.setBackground(Color.WHITE);
+    graphics2D.setPaint(Color.WHITE);
+    graphics2D.fillRect(0, 0, this.thumbWidth, this.thumbHeight);
+
+    // Enable smooth, high-quality resampling
+    graphics2D.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+
+    final ThumbnailReadyObserver observer = new ThumbnailReadyObserver(Thread.currentThread());
+    final boolean scalingComplete = graphics2D.drawImage(this.inputImage, this.offsetX, this.offsetY, this.scaledWidth, this.scaledHeight, observer);
+
+    if (!scalingComplete && observer != null) {
+      // ImageObserver must wait for ready
+      if (ResizeImage.mLog.isDebugEnabled()) {
+        throw new RuntimeException("Scaling is not yet complete!");
+      } else {
+        ResizeImage.mLog.warn("ResizeImage: Scaling is not yet complete!");
+
+        while (!observer.ready) {
+          System.err.println("Waiting .4 sec...");
+          try {
+            Thread.sleep(400);
+          } catch (final InterruptedException e) {
+          }
+        }
+      }
+    }
+
+    graphics2D.dispose();
+  }
 }

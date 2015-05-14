@@ -140,7 +140,7 @@ public class PDFBoxThumbnailer extends AbstractThumbnailer {
                 ImageIO.write(image, PDFBoxThumbnailer.OUTPUT_FORMAT, outputFile);
              } else {
                 final ResizeImage resizer = new ResizeImage(this.thumbWidth, this.thumbHeight);
-                resizer.resizeMethod = ResizeImage.NO_RESIZE_ONLY_CROP;
+                resizer.resizeMethod = ResizeImage.RESIZE_FIT_BOTH_DIMENSIONS;
                 resizer.setInputImage(image);
                 resizer.writeOutput(outputFile);
              }
@@ -171,7 +171,7 @@ public class PDFBoxThumbnailer extends AbstractThumbnailer {
     /* 709 */     final float heightPt = mBox.getHeight();
     /* 711 */     final int widthPx = thumbWidth; 			// Math.round(widthPt * scaling);
     /* 712 */     final int heightPx = thumbHeight; 			// Math.round(heightPt * scaling);
-    /* 710 */     final float scaling = thumbWidth / widthPt; // resolution / 72.0F;
+    /* 710 */     final double scaling = Math.min((double)thumbWidth / widthPt, (double)thumbHeight / heightPt); // resolution / 72.0F;
     /*     */
     /* 714 */     final Dimension pageDimension = new Dimension((int) widthPt, (int) heightPt);
     /*     */
