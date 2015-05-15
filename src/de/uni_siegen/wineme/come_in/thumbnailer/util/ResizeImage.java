@@ -24,12 +24,22 @@ package de.uni_siegen.wineme.come_in.thumbnailer.util;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import java.awt.geom.AffineTransform;
+import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 
 import javax.imageio.ImageIO;
+
+import com.drew.imaging.ImageMetadataReader;
+import com.drew.imaging.ImageProcessingException;
+import com.drew.metadata.Metadata;
+import com.drew.metadata.MetadataException;
+import com.drew.metadata.exif.ExifDirectoryBase;
+import com.drew.metadata.exif.ExifIFD0Directory;
 
 import org.apache.log4j.Logger;
 
@@ -92,6 +102,8 @@ public class ResizeImage {
   private int offsetX;
   private int offsetY;
 
+  private int exifOrientation;
+
 
   public ResizeImage(final int thumbWidth, final int thumbHeight) {
     this.thumbWidth = thumbWidth;
@@ -101,12 +113,24 @@ public class ResizeImage {
 
   public void setInputImage(final File input) throws IOException {
     final BufferedImage image = ImageIO.read(input);
+    try {
+      final Metadata metadata = ImageMetadataReader.readMetadata(input);
+      this.handleMetadata(metadata);
+    } catch (final ImageProcessingException e) {
+      throw new IOException(e);
+    }
     this.setInputImage(image);
   }
 
 
   public void setInputImage(final InputStream input) throws IOException {
     final BufferedImage image = ImageIO.read(input);
+    try {
+      final Metadata metadata = ImageMetadataReader.readMetadata(input);
+      this.handleMetadata(metadata);
+    } catch (final ImageProcessingException e) {
+      throw new IOException(e);
+    }
     this.setInputImage(image);
   }
 
@@ -134,6 +158,21 @@ public class ResizeImage {
     }
 
     ImageIO.write(this.outputImage, format, output);
+  }
+
+
+  private void handleMetadata(final Metadata metadata) {
+    final ExifIFD0Directory directory = metadata.getFirstDirectoryOfType(ExifIFD0Directory.class);
+
+    int orientation = 1;
+    if (directory != null) {
+      try {
+        orientation = directory.getInt(ExifDirectoryBase.TAG_ORIENTATION);
+      } catch (final MetadataException e) {
+        ResizeImage.mLog.info("Could not read image orientation tag");
+      }
+    }
+    this.exifOrientation = orientation;
   }
 
 
@@ -195,8 +234,8 @@ public class ResizeImage {
 
 
   private void paint() {
-    this.outputImage = new BufferedImage(this.thumbWidth, this.thumbHeight, BufferedImage.TYPE_INT_ARGB);
 
+    this.outputImage = new BufferedImage(this.thumbWidth, this.thumbHeight, BufferedImage.TYPE_INT_ARGB);
     final Graphics2D graphics2D = this.outputImage.createGraphics();
 
     // Fill background with white color
@@ -228,5 +267,66 @@ public class ResizeImage {
     }
 
     graphics2D.dispose();
+
+
+    // rotate the thumbnail according to the exif information
+    final AffineTransform transformation = this.getExifTransformation();
+    final AffineTransformOp affineTransformOp = new AffineTransformOp(transformation, AffineTransformOp.TYPE_BICUBIC);
+    final ColorModel destCM = this.outputImage.getType() == BufferedImage.TYPE_BYTE_GRAY ? this.outputImage.getColorModel() : null;
+    final BufferedImage destinationImage = affineTransformOp.createCompatibleDestImage(this.outputImage, destCM);
+    final Graphics2D graphics = destinationImage.createGraphics();
+    graphics.setBackground(Color.WHITE);
+    graphics.clearRect(0, 0, destinationImage.getWidth(), destinationImage.getHeight());
+    this.outputImage = affineTransformOp.filter(this.outputImage, destinationImage);
+    graphics.dispose();
+
   }
+
+
+
+  private AffineTransform getExifTransformation() {
+
+    final AffineTransform t = new AffineTransform();
+
+    switch (this.exifOrientation) {
+      case 0:
+      case 1:
+          break;
+      case 2: // Flip X
+          t.scale(-1.0, 1.0);
+          t.translate(-this.thumbWidth, 0);
+          break;
+      case 3: // PI rotation
+          t.translate(this.thumbWidth, this.thumbHeight);
+          t.rotate(Math.PI);
+          break;
+      case 4: // Flip Y
+          t.scale(1.0, -1.0);
+          t.translate(0, -this.thumbHeight);
+          break;
+      case 5: // - PI/2 and Flip X
+          t.rotate(-Math.PI / 2);
+          t.scale(-1.0, 1.0);
+          break;
+      case 6: // -PI/2 and -width
+          t.translate(this.thumbHeight, 0);
+          t.rotate(Math.PI / 2);
+          break;
+      case 7: // PI/2 and Flip
+          t.scale(-1.0, 1.0);
+          t.translate(-this.thumbHeight, 0);
+          t.translate(0, this.thumbWidth);
+          t.rotate(  3 * Math.PI / 2);
+          break;
+      case 8: // PI / 2
+          t.translate(0, this.thumbWidth);
+          t.rotate(  3 * Math.PI / 2);
+          break;
+    }
+
+    return t;
+  }
+
+
 }
+
