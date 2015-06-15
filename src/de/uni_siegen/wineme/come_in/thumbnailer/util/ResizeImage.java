@@ -95,7 +95,7 @@ public class ResizeImage {
   public static final int ALLOW_SMALLER = 32;
 
   public int resizeMethod = ResizeImage.RESIZE_FIT_BOTH_DIMENSIONS;
-  public int extraOptions = ResizeImage.DO_NOT_SCALE_UP;
+  public int extraOptions = 0; //ResizeImage.DO_NOT_SCALE_UP;
 
   private int scaledWidth;
   private int scaledHeight;
