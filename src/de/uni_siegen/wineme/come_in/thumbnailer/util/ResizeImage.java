@@ -117,7 +117,7 @@ public class ResizeImage {
       final Metadata metadata = ImageMetadataReader.readMetadata(input);
       this.handleMetadata(metadata);
     } catch (final ImageProcessingException e) {
-      throw new IOException(e);
+      ResizeImage.mLog.info("Could not read image metadata, therefore there will be no auto-rotation according to EXIF information.");
     }
     this.setInputImage(image);
   }
@@ -129,7 +129,7 @@ public class ResizeImage {
       final Metadata metadata = ImageMetadataReader.readMetadata(input);
       this.handleMetadata(metadata);
     } catch (final ImageProcessingException e) {
-      throw new IOException(e);
+      ResizeImage.mLog.info("Could not read image metadata, therefore there will be no auto-rotation according to EXIF information.");
     }
     this.setInputImage(image);
   }
