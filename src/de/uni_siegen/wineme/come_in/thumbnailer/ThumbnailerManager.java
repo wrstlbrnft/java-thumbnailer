@@ -176,7 +176,14 @@ public class ThumbnailerManager implements ThumbnailerConstants, Closeable {
 
       final String inputFileName = input.getName();
       final int lastDotPosition = inputFileName.lastIndexOf('.');
-      final String nameWithoutExtension = inputFileName.substring(0, lastDotPosition);
+      final String nameWithoutExtension;
+      if (lastDotPosition != -1) {
+        // removing the extension from the file name
+        nameWithoutExtension = inputFileName.substring(0, lastDotPosition);
+      } else {
+        // the file has no extension, so we take the whole name
+        nameWithoutExtension = inputFileName;
+      }
       final File folder = new File(this.thumbnailFolder, nameWithoutExtension + "-" + System.currentTimeMillis());
 
       return folder;
